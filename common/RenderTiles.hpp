@@ -491,16 +491,15 @@ namespace RenderTiles
                            pixelWidth, pixelHeight,
                            mode);
 
+            TileWireId oldWireId = tiles[tileIndex].getOldWireId();
+#if ENABLE_DELTAS
+            static TileWireId nextId = 0;
+            TileWireId wireId = ++nextId;
+#else
             const uint64_t hash = SpookyHash::hashSubBuffer(pixmap.data(), offsetX, offsetY,
                                     pixelWidth, pixelHeight, pixmapWidth, pixmapHeight);
 
-#if !ENABLE_DELTAS
             TileWireId wireId = pngCache.hashToWireId(hash);
-#else
-            static TileWireId nextId = 0;;
-            TileWireId wireId = ++nextId;
-#endif
-            TileWireId oldWireId = tiles[tileIndex].getOldWireId();
             if (hash != 0 && oldWireId == wireId)
             {
                 // The tile content is identical to what the client already has, so skip it
@@ -512,6 +511,7 @@ namespace RenderTiles
                 tileIndex++;
                 continue;
             }
+#endif
 
 // FIXME: ignore old wire-ids ... they give a wrong base for the delta.
             bool skipCompress = false;
@@ -547,7 +547,7 @@ namespace RenderTiles
                 renderingIds.push_back(wireId);
 
                 LOG_TRC("Queued encoding of tile #" << tileIndex << " at (" << positionX << ',' << positionY << ") with oldWireId=" <<
-                    tiles[tileIndex].getOldWireId() << ", hash=" << hash << " wireId: " << wireId);
+                    tiles[tileIndex].getOldWireId() << ", wireId: " << wireId);
 
                 // Queue to be executed later in parallel inside 'run'
                 pngPool.pushWork([=,&output,&pixmap,&tiles,&renderedTiles,
@@ -557,30 +557,35 @@ namespace RenderTiles
                                   &pngMutex](){
 
                     // FIXME: PngCache useless compared with DeltaCache (?)
-
                         PngCache::CacheData data(new std::vector< char >() );
                         data->reserve(pixmapWidth * pixmapHeight * 1);
 #if ENABLE_DELTAS
                         // FIXME: don't try to store & create deltas for read-only documents.
 
-                        // Can we create a delta ?
-                        static DeltaGenerator deltaGen;
-                        LOG_TRC("Compress new tile #" << tileIndex);
-                        deltaGen.compressOrDelta(pixmap.data(), offsetX, offsetY,
-                                                 pixelWidth, pixelHeight,
-                                                 pixmapWidth, pixmapHeight,
-                                                 tileRect.getLeft(), tileRect.getTop(),
-                                                 tileCombined.getPart(),
-                                                 *data, wireId, oldWireId, pngMutex);
-#else
-                        LOG_TRC("Encode a new png for tile #" << tileIndex);
-                        if (!Png::encodeSubBufferToPNG(pixmap.data(), offsetX, offsetY, pixelWidth, pixelHeight,
-                                                       pixmapWidth, pixmapHeight, *data, mode))
+                        if (tiles[tileIndex].getId() < 0) // not a preview
                         {
-                            // FIXME: Return error.
-                            // sendTextFrameAndLogError("error: cmd=tile kind=failure");
-                            LOG_ERR("Failed to encode tile into PNG.");
-                            return;
+                            // Can we create a delta ?
+                            static DeltaGenerator deltaGen;
+                            LOG_TRC("Compress new tile #" << tileIndex);
+                            deltaGen.compressOrDelta(pixmap.data(), offsetX, offsetY,
+                                                     pixelWidth, pixelHeight,
+                                                     pixmapWidth, pixmapHeight,
+                                                     tileRect.getLeft(), tileRect.getTop(),
+                                                     tileCombined.getPart(),
+                                                     *data, wireId, oldWireId, pngMutex);
+                        }
+                        else
+                        {
+                            // FIXME: write our own trivial PNG encoding code using deflate.
+                            LOG_TRC("Encode a new png for tile #" << tileIndex);
+                            if (!Png::encodeSubBufferToPNG(pixmap.data(), offsetX, offsetY, pixelWidth, pixelHeight,
+                                                           pixmapWidth, pixmapHeight, *data, mode))
+                            {
+                                // FIXME: Return error.
+                                // sendTextFrameAndLogError("error: cmd=tile kind=failure");
+                                LOG_ERR("Failed to encode tile into PNG.");
+                                return;
+                            }
                         }
 #endif
 
