@@ -172,7 +172,7 @@ void TileCache::saveTileAndNotify(const TileDesc& desc, const char *data, const 
 
     if (size <= 0)
     {
-        LOG_TRC("Zero sized cache tile: " << cacheFileName(tile));
+        LOG_TRC("Zero sized cache tile: " << cacheFileName(desc));
         return;
     }
 
@@ -187,20 +187,6 @@ void TileCache::saveTileAndNotify(const TileDesc& desc, const char *data, const 
     std::shared_ptr<TileBeingRendered> tileBeingRendered = findTileBeingRendered(desc);
     if (tileBeingRendered)
     {
-        const size_t subscriberCount = tileBeingRendered->getSubscribers().size();
-
-        // sendTile also does enqueueSendMessage underneath ...
-        if (size > 0 && subscriberCount > 0)
-        {
-            for (size_t i = 0; i < subscriberCount; ++i)
-            {
-                auto& subscriber = tileBeingRendered->getSubscribers()[i];
-                std::shared_ptr<ClientSession> session = subscriber.lock();
-                if (session)
-                    session->sendTile(desc, tile);
-            }
-        }
-
 #if 0
     // FIXME: what is that renderid=cache thing ? ...
 
@@ -241,6 +227,18 @@ void TileCache::saveTileAndNotify(const TileDesc& desc, const char *data, const 
                 }
             }
 #endif
+        const size_t subscriberCount = tileBeingRendered->getSubscribers().size();
+
+        // sendTile also does enqueueSendMessage underneath ...
+        if (size > 0 && subscriberCount > 0)
+        {
+            for (size_t i = 0; i < subscriberCount; ++i)
+            {
+                auto& subscriber = tileBeingRendered->getSubscribers()[i];
+                std::shared_ptr<ClientSession> session = subscriber.lock();
+                if (session)
+                    session->sendTile(desc, tile);
+            }
         }
         else if (subscriberCount == 0)
             LOG_DBG("No subscribers for: " << cacheFileName(desc));
@@ -546,7 +544,7 @@ Tile TileCache::findTile(const TileDesc &desc)
 Tile TileCache::saveDataToCache(const TileDesc &desc, const char *data, const size_t size)
 {
     if (_dontCache)
-        return;
+        return Tile();
 
     ensureCacheSize();
 
@@ -560,10 +558,7 @@ Tile TileCache::saveDataToCache(const TileDesc &desc, const char *data, const si
     else
         _cacheSize += tile->appendBlob(desc.getId(), data, size);
 
-    _cacheSize -= itemCacheSize(res.first->second);
-        _cache[desc] = tile;
-    }
-    _cacheSize += itemCacheSize(tile);
+    return tile;
 }
 
 size_t TileCache::itemCacheSize(const Tile &tile)
