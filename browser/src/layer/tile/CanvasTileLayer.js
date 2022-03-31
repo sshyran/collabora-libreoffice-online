@@ -12,6 +12,8 @@ if (typeof String.prototype.startsWith !== 'function') {
 	};
 }
 
+/* eslint-disable */
+
 // debugging aid.
 function hex2string(inData)
 {
@@ -24,6 +26,8 @@ function hex2string(inData)
 	}
 	return hexified.join('');
 }
+
+/* eslint-enable */
 
 // CStyleData is used to obtain CSS property values from style data
 // stored in DOM elements in the form of custom CSS properties/variables.
@@ -6452,7 +6456,8 @@ L.CanvasTileLayer = L.Layer.extend({
 
 	_applyDelta: function(tile, rawDelta, isKeyframe) {
 		console.log('Applying a raw ' + (isKeyframe ? 'keyframe' : 'delta') +
-			    ' of length ' + rawDelta.length + '\nhex: ' + hex2string(rawDelta));
+			    ' of length ' + rawDelta.length + '\n');
+		// hex: ' + hex2string(rawDelta));
 
 		// decompress the delta.
 		var delta = window.pako.inflateRaw(rawDelta);
@@ -6493,7 +6498,8 @@ L.CanvasTileLayer = L.Layer.extend({
 
 		var pixSize = canvas.width * canvas.height * 4;
 		console.log('Applying a ' + (isKeyframe ? 'keyframe' : 'delta') +
-			    ' of length ' + delta.length + ' pix size: ' + pixSize + '\nhex: ' + hex2string(delta));
+			    ' of length ' + delta.length + ' pix size: ' + pixSize + '\n');
+		// + ' hex: ' + hex2string(delta));
 
 		if (isKeyframe)
 		{
