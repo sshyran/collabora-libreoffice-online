@@ -135,14 +135,16 @@ public:
     enum Type { IPv4, IPv6, All, Unix };
 
     // NB. see other Socket::Socket by init below.
-    Socket(Type type) : _fd(createSocket(type))
+    Socket(Type type)
+        : _fd(createSocket(type))
+        , _logPrefix('#' + std::to_string(_fd) + ": ")
     {
         init();
     }
 
     virtual ~Socket()
     {
-        LOG_TRC('#' << getFD() << " Socket dtor.");
+        LOG_TRC("Socket dtor.");
 
         // Doesn't block on sockets; no error handling needed.
 #if !MOBILEAPP
@@ -172,7 +174,7 @@ public:
     /// TODO: Support separate read/write shutdown.
     virtual void shutdown()
     {
-        LOG_TRC('#' << _fd << ": socket shutdown RDWR.");
+        LOG_TRC("Socket shutdown RDWR.");
 #if !MOBILEAPP
         ::shutdown(_fd, SHUT_RDWR);
 #else
@@ -223,20 +225,20 @@ public:
         if (rc != 0 || _sendBufferSize < 0 )
         {
             _sendBufferSize = DefaultSendBufferSize;
-            LOG_SYS('#' << _fd << ": Error getting socket buffer size. Using default size of "
-                        << _sendBufferSize << " bytes.");
+            LOG_SYS("Error getting socket buffer size. Using default size of " << _sendBufferSize
+                                                                               << " bytes.");
             return false;
         }
         else
         {
             if (_sendBufferSize > MaximumSendBufferSize * 2)
             {
-                LOG_TRC('#' << _fd << ": Clamped send buffer size to " <<
-                        MaximumSendBufferSize << " from " << _sendBufferSize);
+                LOG_TRC("Clamped send buffer size to " << MaximumSendBufferSize << " from "
+                                                       << _sendBufferSize);
                 _sendBufferSize = MaximumSendBufferSize;
             }
             else
-                LOG_TRC('#' << _fd << ": Set socket buffer size to " << _sendBufferSize);
+                LOG_TRC("Set socket buffer size to " << _sendBufferSize);
             return true;
         }
     }
@@ -314,8 +316,8 @@ public:
     {
         if (id != _owner)
         {
-            LOG_TRC('#' << _fd << " thread affinity set to " << Log::to_string(id) << " (was "
-                        << Log::to_string(_owner) << ')');
+            LOG_TRC("Thread affinity set to " << Log::to_string(id) << " (was "
+                                              << Log::to_string(_owner) << ')');
             _owner = id;
         }
     }
@@ -325,8 +327,8 @@ public:
     {
         if (std::thread::id() != _owner)
         {
-            LOG_TRC('#' << _fd << " resetting thread affinity while in transit (was "
-                        << Log::to_string(_owner) << ')');
+            LOG_TRC("Resetting thread affinity while in transit (was " << Log::to_string(_owner)
+                                                                       << ')');
             _owner = std::thread::id();
         }
     }
@@ -342,10 +344,10 @@ public:
         // uninitialized owner means detached and can be invoked by any thread.
         const bool sameThread = (_owner == std::thread::id() || std::this_thread::get_id() == _owner);
         if (!sameThread)
-            LOG_ERR('#' << _fd << " Invoked from foreign thread. Expected: " <<
-                    Log::to_string(_owner) << " but called from " <<
-                    std::this_thread::get_id() << " (" << Util::getThreadId() << ")" <<
-                    " (" << fileName << ":" << lineNo << ")");
+            LOG_ERR("Invoked from foreign thread. Expected: "
+                    << Log::to_string(_owner) << " but called from " << std::this_thread::get_id()
+                    << " (" << Util::getThreadId() << ")"
+                    << " (" << fileName << ":" << lineNo << ")");
 
         // assert(sameThread);
     }
@@ -355,13 +357,15 @@ public:
     // Ensure that no further input is processed from this socket
     virtual void ignoreInput()
     {
-        LOG_TRC('#' << _fd << ": ignore further input on socket.");
+        LOG_TRC("Ignore further input on socket.");
         _ignoreInput = true;
     }
 protected:
     /// Construct based on an existing socket fd.
     /// Used by accept() only.
-    Socket(const int fd) : _fd(fd)
+    Socket(const int fd)
+        : _fd(fd)
+        , _logPrefix('#' + std::to_string(_fd) + ": ")
     {
         init();
     }
@@ -372,7 +376,7 @@ protected:
         _ignoreInput = false;
         _sendBufferSize = DefaultSendBufferSize;
         _owner = std::this_thread::get_id();
-        LOG_TRC('#' << _fd << " Created socket. Thread affinity set to " << Log::to_string(_owner));
+        LOG_TRC("Created socket. Thread affinity set to " << Log::to_string(_owner));
 
 #if !MOBILEAPP
 #if ENABLE_DEBUG
@@ -380,16 +384,18 @@ protected:
         {
             const int oldSize = getSocketBufferSize();
             setSocketBufferSize(0);
-            LOG_TRC('#' << _fd << ": Buffer size: " << getSendBufferSize() <<
-                    " (was " << oldSize << ')');
+            LOG_TRC("Buffer size: " << getSendBufferSize() << " (was " << oldSize << ')');
         }
 #endif
 #endif
     }
 
+    inline void logPrefix(std::ostream& os) const { os << _logPrefix; }
+
 private:
     std::string _clientAddress;
     const int _fd;
+    const std::string _logPrefix;
 
     // If _ignoreInput is true no more input from this socket will be processed.
     bool _ignoreInput;
@@ -468,7 +474,8 @@ public:
 
     /// Shutdown the socket and specify if the endpoint is going away or not (useful for WS).
     /// Optionally provide a message sent in the close frame (useful for WS).
-    virtual void shutdown(bool goingAway = false, const std::string &statusMessage = "") = 0;
+    virtual void shutdown(bool goingAway = false,
+                          const std::string& statusMessage = std::string()) = 0;
 
     virtual void getIOStats(uint64_t &sent, uint64_t &recv) = 0;
 
@@ -659,9 +666,9 @@ public:
         // uninitialized owner means detached and can be invoked by any thread.
         const bool sameThread = (!isAlive() || _owner == std::thread::id() || std::this_thread::get_id() == _owner);
         if (!sameThread)
-            LOG_ERR("Incorrect thread affinity for " << _name << ". Expected: " <<
-                    Log::to_string(_owner) << " (" << Util::getThreadId() <<
-                    ") but called from " << std::this_thread::get_id() << ", stop: " << _stop);
+            LOG_ERR("Incorrect thread affinity for "
+                    << _name << ". Expected: " << _owner << " (" << Util::getThreadId()
+                    << ") but called from " << std::this_thread::get_id() << ", stop: " << _stop);
 
         assert(_stop || sameThread);
     }
@@ -931,17 +938,18 @@ public:
         _readType(readType),
         _inputProcessingEnabled(true)
     {
-        LOG_TRC("StreamSocket ctor #" << fd);
+        LOG_TRC("StreamSocket ctor");
 
         // Without a handler we make no sense object.
         if (!_socketHandler)
-            throw std::runtime_error("StreamSocket expects a valid SocketHandler instance.");
+            throw std::runtime_error("StreamSocket " + std::to_string(fd) +
+                                     " expects a valid SocketHandler instance.");
     }
 
     ~StreamSocket()
     {
-        LOG_TRC("StreamSocket dtor #" << getFD() << " with pending "
-                "write: " << _outBuffer.size() << ", read: " << _inBuffer.size());
+        LOG_TRC("StreamSocket dtor called with pending write: " << _outBuffer.size()
+                                                                << ", read: " << _inBuffer.size());
 
         if (!_closed)
         {
@@ -968,7 +976,7 @@ public:
     virtual void shutdown() override
     {
         _shutdownSignalled = true;
-        LOG_TRC('#' << getFD() << ": Async shutdown requested.");
+        LOG_TRC("Async shutdown requested.");
     }
 
     virtual void ignoreInput() override
@@ -1079,16 +1087,16 @@ public:
 
 #ifdef LOG_SOCKET_DATA
         if (len > 0)
-            LOG_TRC('#' << getFD() << " (Unix) outBuffer (" << len << " bytes):\n"
-                        << Util::dumpHex(std::string(data, len)));
+            LOG_TRC("(Unix) outBuffer (" << len << " bytes):\n"
+                                         << Util::dumpHex(std::string(data, len)));
 #endif
 
         //FIXME: retry on EINTR?
         const auto wrote = sendmsg(getFD(), &msg, 0);
         if (wrote < 0)
-            LOG_SYS('#' << getFD() << " Failed to send message to unix socket");
+            LOG_SYS("Failed to send message to unix socket");
         else
-            LOG_TRC('#' << fd << " wrote " << wrote << " bytes of " << len);
+            LOG_TRC("Wrote " << wrote << " bytes of " << len);
     }
 
     /// Reads data by invoking readData() and buffering.
@@ -1124,12 +1132,12 @@ public:
                     LOG_SYS_ERRNO(last_errno, '#' << getFD() << ": read failed, have "
                                                   << _inBuffer.size() << " buffered bytes");
                 else if (len <= 0)
-                    LOG_TRC('#' << getFD() << ": Read failed, have " << _inBuffer.size()
-                                << " buffered bytes (" << Util::symbolicErrno(last_errno) << ": "
-                                << std::strerror(last_errno) << ')');
+                    LOG_TRC("Read failed, have " << _inBuffer.size() << " buffered bytes ("
+                                                 << Util::symbolicErrno(last_errno) << ": "
+                                                 << std::strerror(last_errno) << ')');
                 else // Success.
-                    LOG_TRC('#' << getFD() << " Read " << len << " bytes in addition to "
-                                << _inBuffer.size() << " buffered bytes"
+                    LOG_TRC("Read " << len << " bytes in addition to " << _inBuffer.size()
+                                    << " buffered bytes"
 #ifdef LOG_SOCKET_DATA
                                 << ":\n"
                                 << Util::dumpHex(std::string(buf, len))
@@ -1221,7 +1229,8 @@ public:
     {
         size_t toErase = std::min(count, _inBuffer.size());
         if (toErase < count)
-            LOG_ERR('#' << getFD() << ": attempted to remove: " << count << " which is > size: " << _inBuffer.size() << " clamped to " << toErase);
+            LOG_ERR("Attempted to remove: " << count << " which is > size: " << _inBuffer.size()
+                                            << " clamped to " << toErase);
         if (toErase > 0)
             _inBuffer.eraseFirst(count);
     }
@@ -1283,7 +1292,7 @@ protected:
     {
         ASSERT_CORRECT_SOCKET_THREAD(this);
 
-        LOG_TRC('#' << getFD() << ": revents: 0x" << std::hex << events << std::dec);
+        LOG_TRC("Revents: 0x" << std::hex << events << std::dec);
 
         _socketHandler->checkTimeout(now);
 
@@ -1299,22 +1308,15 @@ protected:
             // Oddly enough, we don't necessarily get POLLHUP after read(2) returns 0.
             const bool reading = readIncomingData();
             closed = !reading || closed;
-            LOG_TRC('#' << getFD() << " Incoming data buffer " << _inBuffer.size()
-                        << " bytes, closeSocket? " << closed << ", events: " << std::hex << events
-                        << std::dec);
+            LOG_TRC("Incoming data buffer " << _inBuffer.size() << " bytes, closeSocket? " << closed
+                                            << ", events: " << std::hex << events << std::dec);
             if (EnableExperimental && closed && reading)
             {
                 // We might have outstanding data to read, wait until readIncomingData returns false.
-                LOG_DBG('#' << getFD() << ": Closed but will drain incoming data per POLLIN.");
+                LOG_DBG("Closed but will drain incoming data per POLLIN.");
                 closed = false;
             }
         }
-
-#ifdef LOG_SOCKET_DATA
-        if (!_inBuffer.empty())
-            LOG_TRC('#' << getFD() << " inBuffer (" << _inBuffer.size() << " bytes):\n"
-                        << Util::dumpHex(_inBuffer));
-#endif
 
         // If we have data, allow the app to consume.
         size_t oldSize = 0;
@@ -1328,11 +1330,11 @@ protected:
             }
             catch (const std::exception& exception)
             {
-                LOG_ERR('#' << getFD() << ": Error during handleIncomingMessage: " << exception.what());
+                LOG_ERR("Error during handleIncomingMessage: " << exception.what());
             }
             catch (...)
             {
-                LOG_ERR('#' << getFD() << ": Error during handleIncomingMessage.");
+                LOG_ERR("Error during handleIncomingMessage.");
             }
 
             if (disposition.isMove() || disposition.isTransfer())
@@ -1353,7 +1355,7 @@ protected:
             // perform the shutdown if we have sent everything.
             if (_shutdownSignalled && _outBuffer.empty())
             {
-                LOG_TRC('#' << getFD() << ": Shutdown Signaled. Close Connection.");
+                LOG_TRC("Shutdown Signaled. Close Connection.");
                 closeConnection();
                 closed = true;
                 break;
@@ -1369,9 +1371,9 @@ protected:
                     const int last_errno = errno;
                     if (last_errno == EPIPE || (EnableExperimental && last_errno == ECONNRESET))
                     {
-                        LOG_DBG('#' << getFD() << ": Disconnected while writing ("
-                                    << Util::symbolicErrno(last_errno)
-                                    << "): " << std::strerror(last_errno) << ')');
+                        LOG_DBG("Disconnected while writing (" << Util::symbolicErrno(last_errno)
+                                                               << "): " << std::strerror(last_errno)
+                                                               << ')');
                         closed = true;
                         break;
                     }
@@ -1382,7 +1384,7 @@ protected:
 
         if (closed)
         {
-            LOG_TRC('#' << getFD() << ": Closed. Firing onDisconnect.");
+            LOG_TRC("Closed. Firing onDisconnect.");
             _closed = true;
             _socketHandler->onDisconnect();
         }
@@ -1415,14 +1417,13 @@ public:
 
                 // 0 len is unspecified result, according to man write(2).
                 if (len < 0 && last_errno != EAGAIN && last_errno != EWOULDBLOCK)
-                    LOG_SYS_ERRNO(last_errno, '#' << getFD() << ": Socket write returned " << len);
+                    LOG_SYS_ERRNO(last_errno, "Socket write returned " << len);
                 else if (len <= 0) // Trace errno for debugging, even for "unspecified result."
-                    LOG_TRC('#' << getFD() << ": Write failed, have " << _outBuffer.size()
-                                << " buffered bytes (" << Util::symbolicErrno(last_errno) << ": "
-                                << std::strerror(last_errno) << ')');
+                    LOG_TRC("Write failed, have " << _outBuffer.size() << " buffered bytes ("
+                                                  << Util::symbolicErrno(last_errno) << ": "
+                                                  << std::strerror(last_errno) << ')');
                 else // Success.
-                    LOG_TRC('#' << getFD() << ": Wrote " << len << " bytes of " << _outBuffer.size()
-                                << " buffered data"
+                    LOG_TRC("Wrote " << len << " bytes of " << _outBuffer.size() << " buffered data"
 #ifdef LOG_SOCKET_DATA
                                 << ":\n"
                                 << Util::dumpHex(std::string(_outBuffer.getBlock(), len))
