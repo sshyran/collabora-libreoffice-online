@@ -6488,7 +6488,7 @@ L.CanvasTileLayer = L.Layer.extend({
 		var offset = 0;
 		while (offset < delta.length)
 		{
-			console.log('Apply chunk ' + i++);
+			console.log('Apply chunk ' + i++ + ' at offset ' + offset);
 			offset += this._applyDeltaChunk(canvas, tile, initCanvas, delta.subarray(offset), isKeyframe);
 			initCanvas = false;
 			isKeyframe = false;

@@ -80,7 +80,7 @@ struct TileData
             _deltas.clear();
         }
         else
-            LOG_TRC("received delta - appending to existing " << _wids.size());
+            LOG_TRC("received delta of size " << dataSize << " - appending to existing " << _wids.size());
 
         // too many/large deltas means we should reset -
         // but not here - when requesting the tiles.
@@ -130,7 +130,7 @@ struct TileData
     void appendChangesSince(std::vector<char> &output, TileWireId since)
     {
         size_t i;
-        for (i = 0; since != 0 && i < _wids.size() && _wids[i] < since; ++i);
+        for (i = 0; since != 0 && i < _wids.size() && _wids[i] <= since; ++i);
 
         if (i >= _wids.size())
             LOG_TRC("odd outcome - requested for a later id with no tile: " << since);
@@ -138,7 +138,8 @@ struct TileData
         {
             size_t start = i, extra = 0;
             if (start != _deltas.size() - 1)
-                LOG_TRC("appending from " << start << " to " << (_deltas.size() - 1));
+                LOG_TRC("appending from " << start << " to " << (_deltas.size() - 1) <<
+                        " from wid: " << _wids[start] << " to wid: " << since);
             for (i = start; i < _deltas.size(); ++i)
                 extra += _deltas[i]->size();
 
