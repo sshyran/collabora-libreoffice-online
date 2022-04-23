@@ -6459,6 +6459,9 @@ L.CanvasTileLayer = L.Layer.extend({
 			    ' of length ' + rawDelta.length + '\n');
 		// hex: ' + hex2string(rawDelta));
 
+		if (rawDelta.length === 0)
+			return 0; // that was easy!
+
 		// decompress the delta.
 		var delta = window.pako.inflateRaw(rawDelta);
 
@@ -6502,6 +6505,9 @@ L.CanvasTileLayer = L.Layer.extend({
 		console.log('Applying a ' + (isKeyframe ? 'keyframe' : 'delta') +
 			    ' of length ' + delta.length + ' pix size: ' + pixSize + '\n');
 		// + ' hex: ' + hex2string(delta));
+
+		if (delta.length === 0)
+			return 0; // that was easy!
 
 		if (isKeyframe)
 		{
