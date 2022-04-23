@@ -2032,8 +2032,11 @@ void DocumentBroker::autoSaveAndStop(const std::string& reason)
         }
     }
 
+    static const auto minTimeBetweenSaves = std::chrono::milliseconds(
+        COOLWSD::getConfigValue<int>("per_document.min_time_between_saves_ms", 500));
+
     // Don't hammer on saving.
-    if (!canStop && _saveManager.canSaveNow(std::chrono::milliseconds(500)))
+    if (!canStop && _saveManager.canSaveNow(minTimeBetweenSaves))
     {
         // Stop if there is nothing to save.
         const bool possiblyModified = isPossiblyModified();

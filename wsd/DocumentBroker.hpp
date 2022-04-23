@@ -711,10 +711,18 @@ private:
 
 
         /// Sets the time the last response was received to now.
-        void markLastResponseTime() { _lastResponseTime = now(); }
+        void markLastResponseTime()
+        {
+            _lastResponseTime = now();
+            _lastRequestDuration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                _lastResponseTime - _lastRequestTime);
+        }
 
         /// Returns the time the last response was received.
         std::chrono::steady_clock::time_point lastResponseTime() const { return _lastResponseTime; }
+
+        /// Returns the duration of the last request.
+        std::chrono::milliseconds lastRequestDuration() const { return _lastRequestDuration; }
 
         /// How much time passed since the last response,
         /// regardless of whether there is a newer request or not.
@@ -762,6 +770,9 @@ private:
 
         /// The last time we received a response.
         std::chrono::steady_clock::time_point _lastResponseTime;
+
+        /// The time we spent in the last request.
+        std::chrono::milliseconds _lastRequestDuration;
 
         /// Counts the number of previous request that failed.
         /// Note that this is interpretted by the request in question.
@@ -884,11 +895,21 @@ private:
             return _request.timeSinceLastResponse();
         }
 
+        /// Returns how long the last save took.
+        std::chrono::milliseconds lastSaveDuration() const
+        {
+            return _request.lastRequestDuration();
+        }
+
         /// True if we aren't saving and the minimum time since last save has elapsed.
         bool canSaveNow(std::chrono::milliseconds minTime) const
         {
-            return !isSaving() && std::min(_request.timeSinceLastRequest(),
-                                           _request.timeSinceLastResponse()) >= minTime;
+            // Can't save if save is in progress, or when it the time elapsed
+            // since the last response, or request, hasn't been that long, or
+            // if it hasn't been longer than the time the last save took.
+            return !isSaving() &&
+                   std::min(_request.timeSinceLastRequest(), _request.timeSinceLastResponse()) >=
+                       std::max(minTime, lastSaveDuration());
         }
 
         void dumpState(std::ostream& os, const std::string& indent = "\n  ")
@@ -905,9 +926,7 @@ private:
                << "last save request: " << Util::getTimeForLog(now, lastSaveRequestTime());
             os << indent
                << "last save response: " << Util::getTimeForLog(now, lastSaveResponseTime());
-
-            os << indent << "since last save request: " << timeSinceLastSaveRequest();
-            os << indent << "since last save response: " << timeSinceLastSaveResponse();
+            os << indent << "last save duration: " << lastSaveDuration();
 
             os << indent
                << "file last modified time: " << Util::getTimeForLog(now, _lastModifiedTime);
