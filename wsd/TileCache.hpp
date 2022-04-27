@@ -72,7 +72,7 @@ struct TileData
 
         oldSize = size();
 
-        assert (dataSize >= 1); // kit provides us a 'Z' or a 'D'
+        assert (dataSize >= 1); // kit provides us a 'Z' or a 'D' or a png
         if (isKeyframe(data, dataSize))
         {
             LOG_TRC("received key-frame - clearing tile");
@@ -95,9 +95,14 @@ struct TileData
         return size() - oldSize;
     }
 
+    bool isPng() const { return (_deltas.size() == 1 &&
+                                 _deltas[0]->size() > 1 &&
+                                 (*_deltas[0])[0] == (char)0x89); }
+
     static bool isKeyframe(const char *data, size_t dataSize)
     {
-        return dataSize > 0 && data[0] == 'Z';
+        // keyframe or png
+        return dataSize > 0 && (data[0] == 'Z' || data[0] == (char)0x89);
     }
 
     bool isValid() const { return _valid; }
@@ -127,13 +132,16 @@ struct TileData
         return since < _wids[0];
     }
 
-    void appendChangesSince(std::vector<char> &output, TileWireId since)
+    bool appendChangesSince(std::vector<char> &output, TileWireId since)
     {
         size_t i;
         for (i = 0; since != 0 && i < _wids.size() && _wids[i] <= since; ++i);
 
         if (i >= _wids.size())
-            LOG_TRC("odd outcome - requested for a later id with no tile: " << since);
+        {
+            LOG_WRN("odd outcome - requested for a later id with no tile: " << since);
+            return false;
+        }
         else
         {
             size_t start = i, extra = 0;
@@ -158,6 +166,7 @@ struct TileData
                 offset += toCopy;
             }
         }
+        return true;
     }
 
     void dumpState(std::ostream& os)

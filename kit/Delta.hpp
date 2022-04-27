@@ -490,8 +490,8 @@ class DeltaGenerator {
             deflateEnd(&zstr);
 
             uLong compSize = maxCompressed - zstr.avail_out;
-            LOG_TRC("Compressed image of size " << (width * height * 4) << " to size " << compSize
-                    << Util::dumpHex(std::string((char *)compressed, compSize)));
+            LOG_TRC("Compressed image of size " << (width * height * 4) << " to size " << compSize);
+//                    << Util::dumpHex(std::string((char *)compressed, compSize)));
 
             // FIXME: get zlib to drop it directly into this buffer really.
             output.push_back('Z');

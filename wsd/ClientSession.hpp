@@ -98,7 +98,7 @@ public:
         TileWireId lastSentId = _tracker.updateTileSeq(desc);
 
         std::string header;
-        if (tile->needsKeyframe(lastSentId))
+        if (tile->needsKeyframe(lastSentId) || tile->isPng())
             header = desc.serialize("tile:", "\n");
         else
             header = desc.serialize("delta:", "\n");
@@ -110,9 +110,11 @@ public:
 
         output.resize(header.size());
         std::memcpy(output.data(), header.data(), header.size());
-        tile->appendChangesSince(output, lastSentId);
+        if (tile->appendChangesSince(output, tile->isPng() ? 0 : lastSentId))
+            return sendBinaryFrame(output.data(), output.size());
 
-        return sendBinaryFrame(output.data(), output.size());
+        LOG_TRC("redundant tile request " + lastSentId);
+        return true;
     }
 
     bool sendBlob(const std::string &header, const Blob &blob)

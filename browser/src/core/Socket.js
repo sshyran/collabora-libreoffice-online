@@ -400,9 +400,9 @@ app.definitions.Socket = L.Class.extend({
 	},
 
 	// convert to string of bytes without blowing the stack if data is large.
-	_strFromUint8: function(data) {
+	_strFromUint8: function(prefix, data) {
 		var i, chunk = 4096;
-		var strBytes = '';
+		var strBytes = prefix;
 		for (i = 0; i < data.length; i += chunk)
 			strBytes += String.fromCharCode.apply(null, data.slice(i, i + chunk));
 		strBytes += String.fromCharCode.apply(null, data.slice(i));
@@ -411,6 +411,7 @@ app.definitions.Socket = L.Class.extend({
 
 	_extractImage: function(e) {
 		var img;
+		// FIXME: almost certainly we broke iOS with the deltas change.
 		if (window.ThisIsTheiOSApp) {
 			// In the iOS app, the native code sends us the PNG tile already as a data: URL after the newline
 			var newlineIndex = e.textMsg.indexOf('\n');
@@ -420,9 +421,10 @@ app.definitions.Socket = L.Class.extend({
 			}
 		}
 		else
-		{ // FIXME: this code-path needs to die:
+		{ // FIXME: this code-path deserves to die:
 			var data = e.imgBytes.subarray(e.imgIndex);
-			img = 'data:image/png;base64,' + window.btoa(this._strFromUint8(data));
+			// FIXME: we prepend the PNG pre-byte here having removed it in TileCache::appendBlob
+			img = 'data:image/png;base64,' + window.btoa(this._strFromUint8(String.fromCharCode(0x89),data));
 			if (L.Browser.cypressTest && localStorage.getItem('image_validation_test')) {
 				if (!window.imgDatas)
 					window.imgDatas = [];
@@ -456,7 +458,7 @@ app.definitions.Socket = L.Class.extend({
 			return;
 
 		// pass deltas through quickly.
-		if (e.imgBytes && (isTile || isDelta))
+		if (e.imgBytes && (isTile || isDelta) && e.imgBytes[e.imgIndex] != 80 /* P(ng) */)
 		{
 			window.app.console.log('Passed through delta object');
 			e.image = { rawData: e.imgBytes.subarray(e.imgIndex),
@@ -465,8 +467,13 @@ app.definitions.Socket = L.Class.extend({
 			return;
 		}
 
+		console.log('PNG preview');
+		// FIXME: PNG slide previews fall through to here for now until Canvas'd
+		// Avoid loading an image twice
+		e.image = { src: this._extractImage(e) };
+		e.imageIsComplete = true;
+		/*
 		var that = this;
-		var img = this._extractImage(e);
 		e.image = new Image();
 		e.image.onload = function() {
 			e.imageIsComplete = true;
@@ -483,6 +490,7 @@ app.definitions.Socket = L.Class.extend({
 		};
 		e.image.completeTraceEvent = this.createAsyncTraceEvent('loadTile');
 		e.image.src = img;
+		*/
 	},
 
 	_onMessage: function (e) {
