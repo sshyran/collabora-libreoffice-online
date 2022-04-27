@@ -20,7 +20,7 @@
 #include "Rectangle.hpp"
 #include "TileDesc.hpp"
 
-#define ENABLE_DELTAS 0
+#define ENABLE_DELTAS 1
 
 #if ENABLE_DEBUG
 #  define ADD_DEBUG_RENDERID (" renderid=" + Util::UniqueId() + '\n')
@@ -177,7 +177,6 @@ namespace RenderTiles
 
     bool doRender(std::shared_ptr<lok::Document> document,
                   TileCombined &tileCombined,
-
                   ThreadPool &pngPool,
                   bool combined,
                   const std::function<void (unsigned char *data,
@@ -276,7 +275,6 @@ namespace RenderTiles
             static TileWireId nextId = 0;
             TileWireId wireId = ++nextId;
 #else
-
             TileWireId wireId = pngCache.hashToWireId(hash);
             if (hash != 0 && oldWireId == wireId)
             {
