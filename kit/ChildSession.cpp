@@ -1834,6 +1834,7 @@ bool ChildSession::renderWindow(const StringVector& tokens)
                                << " and rendered in " << elapsedMs << " (" << area / elapsedMics
                                << " MP/s).");
 
+    // FIXME: remove SpookyHash et. al.
     uint64_t pixmapHash = SpookyHash::hashSubBuffer(pixmap.data(), 0, 0, width, height, bufferWidth, bufferHeight) + getViewId();
 
     auto found = std::find(_pixmapCache.begin(), _pixmapCache.end(), pixmapHash);

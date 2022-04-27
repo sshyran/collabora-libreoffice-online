@@ -58,7 +58,6 @@
 #endif
 
 #include "Log.hpp"
-#include "SpookyV2.h"
 #include "TraceEvent.hpp"
 
 namespace Png
