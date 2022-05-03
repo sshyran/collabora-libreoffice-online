@@ -270,7 +270,9 @@ namespace RenderTiles
                            pixelWidth, pixelHeight,
                            mode);
 
+// FIXME: ignore old wire-ids ... they give a wrong base for the delta.
             TileWireId oldWireId = tiles[tileIndex].getOldWireId();
+
 #if ENABLE_DELTAS
             static TileWireId nextId = 0;
             TileWireId wireId = ++nextId;
@@ -289,7 +291,6 @@ namespace RenderTiles
             }
 #endif
 
-// FIXME: ignore old wire-ids ... they give a wrong base for the delta.
             bool skipCompress = false;
             if (!skipCompress)
             {
