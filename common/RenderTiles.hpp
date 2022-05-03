@@ -268,8 +268,8 @@ namespace RenderTiles
                            pixelWidth, pixelHeight,
                            mode);
 
-// FIXME: ignore old wire-ids ... they give a wrong base for the delta.
-            TileWireId oldWireId = tiles[tileIndex].getOldWireId();
+            // FIXME: prettify this.
+            bool forceKeyframe = tiles[tileIndex].getOldWireId() == 0;
 
             // FIXME: we should perhaps increment only on a plausible edit
             static TileWireId nextId = 0;
@@ -280,8 +280,8 @@ namespace RenderTiles
             {
                 renderingIds.push_back(wireId);
 
-                LOG_TRC("Queued encoding of tile #" << tileIndex << " at (" << positionX << ',' << positionY << ") with oldWireId=" <<
-                    tiles[tileIndex].getOldWireId() << ", wireId: " << wireId);
+                LOG_TRC("Queued encoding of tile #" << tileIndex << " at (" << positionX << ',' << positionY << ") with " <<
+                        (forceKeyframe?"force keyframe" : "allow delta") << ", wireId: " << wireId);
 
                 // Queue to be executed later in parallel inside 'run'
                 pngPool.pushWork([=,&output,&pixmap,&tiles,&renderedTiles,
@@ -301,7 +301,7 @@ namespace RenderTiles
                                                      pixmapWidth, pixmapHeight,
                                                      tileRect.getLeft(), tileRect.getTop(),
                                                      tileCombined.getPart(),
-                                                     *data, wireId, oldWireId, pngMutex);
+                                                     *data, wireId, forceKeyframe, pngMutex);
                         }
                         else
                         {
