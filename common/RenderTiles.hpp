@@ -20,8 +20,6 @@
 #include "Rectangle.hpp"
 #include "TileDesc.hpp"
 
-#define ENABLE_DELTAS 1
-
 #if ENABLE_DEBUG
 #  define ADD_DEBUG_RENDERID (" renderid=" + Util::UniqueId() + '\n')
 #else
@@ -273,23 +271,9 @@ namespace RenderTiles
 // FIXME: ignore old wire-ids ... they give a wrong base for the delta.
             TileWireId oldWireId = tiles[tileIndex].getOldWireId();
 
-#if ENABLE_DELTAS
+            // FIXME: we should perhaps increment only on a plausible edit
             static TileWireId nextId = 0;
             TileWireId wireId = ++nextId;
-#else
-            TileWireId wireId = pngCache.hashToWireId(hash);
-            if (hash != 0 && oldWireId == wireId)
-            {
-                // The tile content is identical to what the client already has, so skip it
-                LOG_TRC("Match for tile #" << tileIndex << " at (" << positionX << ',' <<
-                        positionY << ") oldhash==hash (" << hash << "), wireId: " << wireId << " skipping");
-                // Push a zero byte image to inform WSD we didn't need that.
-                // This allows WSD side TileCache to free up waiting subscribers.
-                pushRendered(renderedTiles, tiles[tileIndex], wireId, 0);
-                tileIndex++;
-                continue;
-            }
-#endif
 
             bool skipCompress = false;
             if (!skipCompress)
@@ -305,7 +289,6 @@ namespace RenderTiles
 
                     auto data = std::shared_ptr<std::vector< char >>(new std::vector< char >());
                     data->reserve(pixmapWidth * pixmapHeight * 1);
-#if ENABLE_DELTAS
                         // FIXME: don't try to store & create deltas for read-only documents.
 
                         if (tiles[tileIndex].getId() < 0) // not a preview
@@ -333,7 +316,6 @@ namespace RenderTiles
                                 return;
                             }
                         }
-#endif
 
                         LOG_TRC("Tile " << tileIndex << " is " << data->size() << " bytes.");
                         std::unique_lock<std::mutex> pngLock(pngMutex);
