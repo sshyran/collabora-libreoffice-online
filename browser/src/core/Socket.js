@@ -421,10 +421,13 @@ app.definitions.Socket = L.Class.extend({
 			}
 		}
 		else
-		{ // FIXME: this code-path deserves to die:
+		{
 			var data = e.imgBytes.subarray(e.imgIndex);
-			// FIXME: we prepend the PNG pre-byte here having removed it in TileCache::appendBlob
-			img = 'data:image/png;base64,' + window.btoa(this._strFromUint8(String.fromCharCode(0x89),data));
+			var prefix = '';
+			// FIXME: so we prepend the PNG pre-byte here having removed it in TileCache::appendBlob
+			if (data[0] != 0x89)
+				prefix = String.fromCharCode(0x89);
+			img = 'data:image/png;base64,' + window.btoa(this._strFromUint8(prefix,data));
 			if (L.Browser.cypressTest && localStorage.getItem('image_validation_test')) {
 				if (!window.imgDatas)
 					window.imgDatas = [];
@@ -468,11 +471,16 @@ app.definitions.Socket = L.Class.extend({
 		}
 
 		console.log('PNG preview');
-		// FIXME: PNG slide previews fall through to here for now until Canvas'd
-		// Avoid loading an image twice
-		e.image = { src: this._extractImage(e) };
-		e.imageIsComplete = true;
-		/*
+
+		// lazy-loaded PNG slide previews
+		var img = this._extractImage(e);
+		if (isTile) {
+			e.image = { src: img };
+			e.imageIsComplete = true;
+			return;
+		}
+
+		// PNG dialog bits
 		var that = this;
 		e.image = new Image();
 		e.image.onload = function() {
@@ -490,7 +498,6 @@ app.definitions.Socket = L.Class.extend({
 		};
 		e.image.completeTraceEvent = this.createAsyncTraceEvent('loadTile');
 		e.image.src = img;
-		*/
 	},
 
 	_onMessage: function (e) {
