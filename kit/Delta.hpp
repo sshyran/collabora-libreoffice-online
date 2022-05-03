@@ -360,7 +360,7 @@ class DeltaGenerator {
     DeltaGenerator() {}
 
     /**
-     * Creates a delta between @oldWid and pixmap if possible:
+     * Creates a delta if possible:
      *   if so - returns @true and appends the delta to @output
      * stores @pixmap, and other data to accelerate delta
      * creation in a limited size cache.
@@ -371,7 +371,7 @@ class DeltaGenerator {
         int bufferWidth, int bufferHeight,
         int tileLeft, int tileTop, int tilePart,
         std::vector<char>& output,
-        TileWireId wid, TileWireId oldWid,
+        TileWireId wid, bool forceKeyframe,
         std::mutex &pngMutex)
     {
         // FIXME: why duplicate this ? we could overwrite
@@ -406,8 +406,7 @@ class DeltaGenerator {
         // no other thread can touch the same tile at the same time.
         if (cacheEntry)
         {
-            // zero to force key-frame
-            if (oldWid != 0)
+            if (!forceKeyframe)
             {
                 makeDelta(*cacheEntry, *update, output);
                 cacheEntry->replace(update);
@@ -436,14 +435,13 @@ class DeltaGenerator {
         int bufferWidth, int bufferHeight,
         int tileLeft, int tileTop, int tilePart,
         std::vector<char>& output,
-        TileWireId wid, TileWireId oldWid,
+        TileWireId wid, bool forceKeyframe,
         std::mutex &pngMutex)
     {
         if (!createDelta(pixmap, startX, startY, width, height, bufferWidth, bufferHeight,
-                         tileLeft, tileTop, tilePart, output, wid, oldWid, pngMutex))
+                         tileLeft, tileTop, tilePart, output, wid, forceKeyframe, pngMutex))
         {
             // FIXME: should stream it in =)
-
 
             // FIXME: get sizes right [!] ...
             z_stream zstr;
