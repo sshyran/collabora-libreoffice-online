@@ -409,28 +409,25 @@ class DeltaGenerator {
                     break;
                 }
             }
+
+            if (!cacheEntry)
+            {
+                _deltaEntries.push_back(update);
+                return false;
+            }
         }
         // interestingly cacheEntry may no longer be in the cache by here.
 
         // no other thread can touch the same tile at the same time.
-        if (cacheEntry)
-        {
-            if (!forceKeyframe)
-            {
-                makeDelta(*cacheEntry, *update, output);
-                cacheEntry->replace(update);
-                return true;
-            }
-            cacheEntry->replace(update);
-            return false;
-        }
-        else
-        {
-            // protect _deltaEntries
-            std::unique_lock<std::mutex> pngLock(pngMutex);
-            _deltaEntries.push_back(update);
-        }
+        assert (cacheEntry);
 
+        if (!forceKeyframe)
+        {
+            makeDelta(*cacheEntry, *update, output);
+            cacheEntry->replace(update);
+            return true;
+        }
+        cacheEntry->replace(update);
         return false;
     }
 
