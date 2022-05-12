@@ -18,8 +18,10 @@ class DeltaTests : public CPPUNIT_NS::TestFixture
 {
     CPPUNIT_TEST_SUITE(DeltaTests);
 
+#if ENABLE_DELTAS
     CPPUNIT_TEST(testDeltaSequence);
     CPPUNIT_TEST(testRandomDeltas);
+#endif
 
     CPPUNIT_TEST_SUITE_END();
 

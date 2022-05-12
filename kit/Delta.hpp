@@ -12,6 +12,8 @@
 #include <Log.hpp>
 #include <zlib.h>
 
+#define ENABLE_DELTAS 0
+
 #ifndef TILE_WIRE_ID
 #  define TILE_WIRE_ID
    typedef uint32_t TileWireId;
@@ -294,6 +296,10 @@ class DeltaGenerator {
             return true;
         }
 
+#if !ENABLE_DELTAS
+        return false; // Disable transmission for now; just send keyframes.
+#endif
+
         z_stream zstr;
         memset((void *)&zstr, 0, sizeof (zstr));
 
@@ -429,14 +435,11 @@ class DeltaGenerator {
         // no other thread can touch the same tile at the same time.
         assert (cacheEntry);
 
+        bool delta = false;
         if (!forceKeyframe)
-        {
-            makeDelta(*cacheEntry, *update, output);
-            cacheEntry->replace(update);
-            return true;
-        }
+            delta = makeDelta(*cacheEntry, *update, output);
         cacheEntry->replace(update);
-        return false;
+        return delta;
     }
 
     /**
