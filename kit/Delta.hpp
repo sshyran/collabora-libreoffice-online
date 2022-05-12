@@ -285,6 +285,14 @@ class DeltaGenerator {
             }
         }
         LOG_TRC("Created delta of size " << output.size());
+        if (output.size() == 0)
+        {
+            // The tile content is identical to what the client already has, so skip it
+            LOG_TRC("Identical / un-changed tile");
+            // Return a zero byte image to inform WSD we didn't need that.
+            // This allows WSD side TileCache to free up waiting subscribers.
+            return true;
+        }
 
         z_stream zstr;
         memset((void *)&zstr, 0, sizeof (zstr));
